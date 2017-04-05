@@ -246,13 +246,14 @@ while(<>) {
     } else {
         # RFC 3339 timestamp format?
         next unless((($msgYr, $msgMon, $msgDay, $msgHr, $msgMin, $msgSec, $logRmdr) =
-            /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:[\+\-](?:\d{2}):(?:\d{2})|Z) \S+ (.+)$/o) == 10);
+            /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[\+\-](?:\d{2}):(?:\d{2})|Z) \S+ (.+)$/) == 7);
         # RFC 3339 months start at "1", we index from 0
         --$msgMon;
     }
 
-    unless((($cmd, $qid) = $logRmdr =~ m#^(?:postfix|$syslogName)/([^\[:]*).*?: ([^:\s]+)#o) == 2 ||
-           (($cmd, $qid) = $logRmdr =~ m#^((?:postfix)(?:-script)?)(?:\[\d+\])?: ([^:\s]+)#o) == 2)
+    unless((($cmd, $qid) = $logRmdr =~ m#^(?:postfix-?\w*|$syslogName)(?:/(?:smtps|submission))?/([^\[:]*).*?: ([^:\s]+)#o) == 2 ||
+           (($cmd, $qid) = $logRmdr =~ m#^((?:postfix)(?:-script)?)(?:\[\d+\])?: ([^:\s]+)#o) == 2 ||
+           (($cmd, $qid) = $logRmdr =~ m#^MailScanner\[\d+\]: (Requeue): (\w+)\.#) == 2)
     {
         #print UNPROCD "$_";
         next;
@@ -556,9 +557,9 @@ sub remove_seen
 ########################################################
 
 # Taken from pflogsumm
-# return a date string to match in log
+# return traditional and RFC3339 date strings to match in log
 sub get_datestr {
-    my $dateOpt = $_[0];
+    my ($dateOpt) = $_[0];
 
     my $time = time();
 
@@ -568,9 +569,9 @@ sub get_datestr {
     } elsif($dateOpt ne "today") {
         die "$usageMsg\n";
     }
-    my ($t_mday, $t_mon) = (localtime($time))[3,4];
+    my ($t_mday, $t_mon, $t_year) = (localtime($time))[3,4,5];
 
-    return sprintf("%s %2d", $monthNames[$t_mon], $t_mday);
+    return sprintf("%s %2d", $monthNames[$t_mon], $t_mday), sprintf("%04d-%02d-%02d", $t_year+1900, $t_mon+1, $t_mday);
 }
 
 
